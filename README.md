@@ -31,12 +31,12 @@ To test the installation:
 Example implementations can be found inside Examples folder.
 
 * Run example SHD implementation, with Learnable tenary weights, quantized delays, L2 penalty. You could get >90% performance on SHD datasets. Unzip the SHD dataset under example/SHD/data/ folder (download here: https://drive.google.com/file/d/1XfHOPds7drVKjNJD9y7XKtiDgnq4BGNf/view?usp=drive_link)
-  
+
+
        `>>> cd examples/SHD`
 
-`
+
   
 	`>>> python train.py`
 
-`
 	
