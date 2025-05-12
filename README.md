@@ -35,6 +35,6 @@ Example implementations can be found inside Examples folder.
 ```bash
    cd examples/SHD
 
- python train.py
+   python train.py
 
 	
