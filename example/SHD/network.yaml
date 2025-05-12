@@ -1,0 +1,24 @@
+simulation:
+    Ts: 1.0
+    tSample: 400
+neuron:
+    type:     SRMALPHA
+    theta:    10
+    tauSr:    1.0
+    tauRef:   2.0
+    scaleRef: 2
+    tauRho:   0.1
+    scaleRho: 0.1
+training:
+    error:
+        type: ProbSpikes #ProbSpikes #NumSpikes
+    path:
+        #in:      /fast/sumit/NTIDIGITS/NTIDIGITSsingleRaw/
+        #train:   /fast/sumit/NTIDIGITS/train.txt
+        #test:    /fast/sumit/NTIDIGITS/test.txt
+    
+        in:      ../../../NTIDIGITSsingleRaw/
+        train:   ../../../train.txt
+        test:    ../../../test.txt
+
+
