@@ -10,11 +10,8 @@ Python 3 with the following packages installed:
 
 A **CUDA** enabled **GPU** is required for training any model.
 No plans on CPU only implementation yet.
-The software has been tested with CUDA libraries version 11.3 and Pytorch 1.12.1 （pip install torch==1.12.1+cu113 \
-            torchvision==0.13.1+cu113 \
-            torchaudio==0.12.1 \
-            -f https://download.pytorch.org/whl/cu113/torch_stable.html
-）
+The software has been tested with CUDA libraries version 11.3 and Pytorch 1.12.1 （pip install torch==1.12.1+cu113 torchvision==0.13.1+cu113 \
+            torchaudio==0.12.1  -f https://download.pytorch.org/whl/cu113/torch_stable.html）
 
 ## Installation
 The repository includes C++ and CUDA code that has to be compiled and installed before it can be used from Python, download the repository and run the following command to do so:
