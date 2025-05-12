@@ -35,7 +35,7 @@ To test the installation:
 Example implementations can be found inside Examples folder.
 
 * Run example SHD implementation, with Learnable tenary weights, quantized delays, L2 penalty. You could get >90% performance on SHD datasets.
-
+       `>>> cd examples/SHD`
 	`>>> python train.py`
 
 `
