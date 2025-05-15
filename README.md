@@ -37,8 +37,9 @@ Example implementations can be found inside Examples folder.
 
    python train.py
 ```
+During the training, you will find the delay evolution through time for the first and second layers.
 ![Delay evolution](docs/1.png)
-
+![Delay evolution](docs/2.png)
 
 
 	
