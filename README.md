@@ -37,9 +37,14 @@ Example implementations can be found inside Examples folder.
 
    python train.py
 ```
-During the training, you will find the delay evolution through time for the first and second layers.
+During training, you can visualize how the delays evolve over time in both the first and second layers:
 ![Delay evolution](docs/1.png)
 ![Delay evolution](docs/2.png)
+
+Moreover, by quantizing the delays— for example: self.delay1 = slayer.delay_minmax(128, step=10)
+which uses 128 neurons and a dilation step of 10—you can boost your performance to 90.4%:
+The corresponding quantized weights and delays are:
+![Delay evolution](docs/3.png)
 
 
 	
