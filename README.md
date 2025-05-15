@@ -37,4 +37,8 @@ Example implementations can be found inside Examples folder.
 
    python train.py
 
+![Delay evolution](docs/1.png)
+
+
+
 	
