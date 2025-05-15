@@ -36,7 +36,7 @@ Example implementations can be found inside Examples folder.
    cd examples/SHD
 
    python train.py
-
+```
 ![Delay evolution](docs/1.png)
 
 
