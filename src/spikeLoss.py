@@ -1,98 +1,31 @@
-import math
-import numpy as np
+import slayerSNN
+import slayerCuda
 import torch
-import torch.nn as nn
-from .slayer import spikeLayer
+import numpy as np
 
-class spikeLoss(torch.nn.Module):   
-    '''
-    This class defines different spike based loss modules that can be used to optimize the SNN.
-
-    NOTE: By default, this class uses the spike kernels from ``slayer.spikeLayer`` (``snn.layer``).
-    In some cases, you may want to explicitly use different spike kernels, for e.g. ``slayerLoihi.spikeLayer`` (``snn.loihi``).
-    In that scenario, you can explicitly pass the class name: ``slayerClass=snn.loihi`` 
-
-    Usage:
-
-    >>> error = spikeLoss.spikeLoss(networkDescriptor)
-    >>> error = spikeLoss.spikeLoss(errorDescriptor, neuronDesc, simulationDesc)
-    >>> error = spikeLoss.spikeLoss(netParams, slayerClass=slayerLoihi.spikeLayer)
-    '''
-    def __init__(self, errorDescriptor, neuronDesc, simulationDesc, slayerClass=spikeLayer):
-        super(spikeLoss, self).__init__()
-        self.neuron = neuronDesc
-        self.simulation = simulationDesc
-        self.errorDescriptor = errorDescriptor
-        # self.slayer = spikeLayer(neuronDesc, simulationDesc)
-        self.slayer = slayerClass(self.neuron, self.simulation)
+class spikeLoss(slayerSNN.spikeLoss.spikeLoss):
+    def __init__(self, networkDescriptor, slayerClass=slayerSNN.layer):
+        super(spikeLoss, self).__init__(networkDescriptor, slayerClass)
+        self.slidingWindow = None
         
-    def __init__(self, networkDescriptor, slayerClass=spikeLayer):
-        super(spikeLoss, self).__init__()
-        self.neuron = networkDescriptor['neuron']
-        self.simulation = networkDescriptor['simulation']
-        self.errorDescriptor = networkDescriptor['training']['error']
-        # self.slayer = spikeLayer(self.neuron, self.simulation)
-        self.slayer = slayerClass(self.neuron, self.simulation)
-        
-    def spikeTime(self, spikeOut, spikeDesired):
-        '''
-        Calculates spike loss based on spike time.
-        The loss is similar to van Rossum distance between output and desired spike train.
+    def spikeRate(self, spikeOut, desiredClass, scale=1, earlySpikeBias=None):
+        assert self.errorDescriptor['type'] == 'SpikeRate', "Error type is not SpiekRate"
 
-        .. math::
-
-            E = \int_0^T \\left( \\varepsilon * (output -desired) \\right)(t)^2\\ \\text{d}t 
-
-        Arguments:
-            * ``spikeOut`` (``torch.tensor``): spike tensor
-            * ``spikeDesired`` (``torch.tensor``): desired spike tensor
-
-        Usage:
-
-        >>> loss = error.spikeTime(spikeOut, spikeDes)
-        '''
-        # Tested with autograd, it works
-        assert self.errorDescriptor['type'] == 'SpikeTime', "Error type is not SpikeTime"
-        # error = self.psp(spikeOut - spikeDesired) 
-        error = self.slayer.psp(spikeOut - spikeDesired) 
-        return 1/2 * torch.sum(error**2) * self.simulation['Ts']
-    
-    def numSpikes(self, spikeOut, desiredClass, numSpikesScale=1):
-        '''
-        Calculates spike loss based on number of spikes within a `target region`.
-        The `target region` and `desired spike count` is specified in ``error.errorDescriptor['tgtSpikeRegion']``
-        Any spikes outside the target region are penalized with ``error.spikeTime`` loss..
-
-        .. math::
-            e(t) &= 
-            \\begin{cases}
-            \\frac{acutalSpikeCount - desiredSpikeCount}{targetRegionLength} & \\text{for }t \in targetRegion\\\\
-            \\left(\\varepsilon * (output - desired)\\right)(t) & \\text{otherwise}
-            \\end{cases}
-            
-            E &= \\int_0^T e(t)^2 \\text{d}t
-
-        Arguments:
-            * ``spikeOut`` (``torch.tensor``): spike tensor
-            * ``desiredClass`` (``torch.tensor``): one-hot encoded desired class tensor. Time dimension should be 1 and rest of the tensor dimensions should be same as ``spikeOut``.
-
-        Usage:
-
-        >>> loss = error.numSpikes(spikeOut, target)
-        '''
-        # Tested with autograd, it works
-        assert self.errorDescriptor['type'] == 'NumSpikes', "Error type is not NumSpikes"
-        # desiredClass should be one-hot tensor with 5th dimension 1
         tgtSpikeRegion = self.errorDescriptor['tgtSpikeRegion']
-        tgtSpikeCount  = self.errorDescriptor['tgtSpikeCount']
+        tgtSpikeRate   = self.errorDescriptor['tgtSpikeRate']
         startID = np.rint( tgtSpikeRegion['start'] / self.simulation['Ts'] ).astype(int)
         stopID  = np.rint( tgtSpikeRegion['stop' ] / self.simulation['Ts'] ).astype(int)
-        
+
+        desiredClass = desiredClass.cpu().data.numpy()
         actualSpikes = torch.sum(spikeOut[...,startID:stopID], 4, keepdim=True).cpu().detach().numpy() * self.simulation['Ts']
-        desiredSpikes = np.where(desiredClass.cpu() == True, tgtSpikeCount[True], tgtSpikeCount[False])
-        # print('actualSpikes :', actualSpikes.flatten())
-        # print('desiredSpikes:', desiredSpikes.flatten())
-        errorSpikeCount = (actualSpikes - desiredSpikes) / (stopID - startID) * numSpikesScale
+        desiredRate  = tgtSpikeRate[True] * desiredClass + tgtSpikeRate[False] * (1 - desiredClass)
+        desiredSpikes = desiredRate * spikeOut.shape[-1]
+
+        if earlySpikeBias is None:
+            errorSpikeCount = (actualSpikes - desiredSpikes) / (stopID - startID) # * scale
+        else:
+            print('To be implemented.')
+
         targetRegion = np.zeros(spikeOut.shape)
         targetRegion[:,:,:,:,startID:stopID] = 1;
         spikeDesired = torch.FloatTensor(targetRegion * spikeOut.cpu().data.numpy()).to(spikeOut.device)
@@ -102,39 +35,160 @@ class spikeLoss(torch.nn.Module):
         error += torch.FloatTensor(errorSpikeCount * targetRegion).to(spikeOut.device)
         
         return 1/2 * torch.sum(error**2) * self.simulation['Ts']
-    
-    def probSpikes(spikeOut, spikeDesired, probSlidingWindow = 20):
+
+    def loss_mem(self, spikeOut, desiredClass, mem):
+        return loss_mem.apply(spikeOut, desiredClass, mem)
+
+    def probSpikes(self, spikeOut, desiredProb, probSlidingWindow=None):
         assert self.errorDescriptor['type'] == 'ProbSpikes', "Error type is not ProbSpikes"
+        if probSlidingWindow is None:
+            # return self._globalProbSpikes(spikeOut, desiredProb)
+            return globalProbSpikes.apply(spikeOut, desiredProb)
+        else:
+            return runningProbSpikes.apply(spikeOut, desiredProb, probSlidingWindow)
+
+    def adaptiveSpikes(self, spikeOut, desiredClass):
+        assert self.errorDescriptor['type'] == 'AdaptiveSpikes', "Error type is not AdaptiveSpikes"
+        
+        tgtSpikeRate   = self.errorDescriptor['tgtSpikeRate']
+
+        desiredClass = desiredClass.cpu().data.numpy()
+        actualSpikes = torch.sum(spikeOut, 4, keepdim=True).cpu().detach().numpy() * self.simulation['Ts']
+        desiredRate  = tgtSpikeRate[True] * desiredClass + tgtSpikeRate[False] * (1 - desiredClass)
+        desiredSpikes = np.rint(desiredRate * spikeOut.shape[-1])
+
+        spikeDes  = np.zeros(spikeOut.shape)
+
+        N, C, H, W, T = spikeOut.shape
+
+        for n in range(N):
+            for c in range(C):
+                for h in range(H):
+                    for w in range(W):
+                        outAE = np.argwhere(spikeOut[n, c, h, w].cpu().data.numpy() > 0).flatten()
+                        if actualSpikes[n, c, h, w] < desiredSpikes[n, c, h, w]:
+                            deficitSpikes = int(desiredSpikes[n, c, h, w] - actualSpikes[n, c, h, w])
+                            desAE = np.hstack((outAE, np.random.permutation(T)[:deficitSpikes]))
+                            spikeDes[n, c, h, w, desAE] = 1 / self.simulation['Ts']
+                        elif actualSpikes[n, c, h, w] > desiredSpikes[n, c, h, w]:
+                            desAE = outAE[:int(desiredSpikes[n, c, h, w])] # only take the first spikes
+                            spikeDes[n, c, h, w, desAE] = 1 / self.simulation['Ts']
+                        else:
+                            spikeDes[n, c, h, w, outAE] = 1 / self.simulation['Ts']
+
+        error = self.slayer.psp(spikeOut - torch.FloatTensor(spikeDes).to(spikeOut.device)) 
+        return 1/2 * torch.sum(error**2) * self.simulation['Ts']
+
+
+
+    def variableRate(self, spikeOut, desiredRate, slidingWindow) :
+        # assert self.errorDescriptor['type'] = 'TemporalRate', "Error type is not TemporalRate"
         pass
 
-    # def numSpikesII(self, membranePotential, desiredClass, numSpikeScale=1):
-    #   assert self.errorDescriptor['type'] == 'NumSpikes', "Error type is not NumSpikes"
-    #   # desiredClass should be one-hot tensor with 5th dimension 1
-    #   tgtSpikeRegion = self.errorDescriptor['tgtSpikeRegion']
-    #   tgtSpikeCount  = self.errorDescriptor['tgtSpikeCount']
-    #   startID = np.rint( tgtSpikeRegion['start'] / self.simulation['Ts'] ).astype(int)
-    #   stopID  = np.rint( tgtSpikeRegion['stop' ] / self.simulation['Ts'] ).astype(int)
+class gradLog(torch.autograd.Function):
+    data = None
+    # data = 
+
+    @staticmethod
+    def forward(ctx, input):
+        return input
+
+    @staticmethod
+    def backward(ctx, gradOutput):
+        gradLog.data = gradOutput
+        # gradLog.data.append(gradOutput)
+        return gradOutput
+
+class conv(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, x, filter):
+        psp = slayerCuda.conv(x.contiguous(), filter, 1)
+        ctx.save_for_backward(filter)
+        return psp
+
+    @staticmethod
+    def backward(ctx, gradOutput):
+        '''
+        '''
+        (filter, ) = ctx.saved_tensors
+        gradInput = slayerCuda.corr(gradOutput.contiguous(), filter, 1)
         
-    #   spikeOut = self.slayer.spike(membranePotential)
-    #   spikeDes = torch.zeros(spikeOut.shape, dtype=spikeOut.dtype).to(spikeOut.device)
+        return gradInput, None
+
+class runningProbSpikes(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, spikeOut, desiredProb, probSlidingWindow):
+        slidingWindow = torch.ones((probSlidingWindow), dtype=torch.float32, requires_grad=False)
+        spikeCount = conv.apply(spikeOut.contiguous(), slidingWindow.to(spikeOut.device)).clamp(1)
+        totalSpike = spikeCount.sum(dim=[1, 2, 3], keepdim=True)
+        probability = spikeCount / totalSpike
+
+        ctx.save_for_backward(probability, desiredProb, spikeCount)
+
+        return torch.sum( -desiredProb * torch.log(probability))
+
+    @staticmethod
+    def backward(ctx, gradOutput):
+        (probability, desiredProb, spikeCount) = ctx.saved_tensors
         
-    #   actualSpikes = torch.sum(spikeOut[...,startID:stopID], 4, keepdim=True).cpu().detach().numpy() * self.simulation['Ts']
-    #   desiredSpikes = np.where(desiredClass.cpu() == True, tgtSpikeCount[True], tgtSpikeCount[False])
+        grad = (probability - desiredProb) / spikeCount
+
+        return grad * gradOutput, None, None
+
+class globalProbSpikes(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, spikeOut, desiredProb):
+        spikeCount  = torch.sum(spikeOut, 4, keepdim=True).clamp(1) # minimum spike count of 1 for numerical stability
+        totalSpike  = spikeCount.sum(dim=[1, 2, 3], keepdim=True)
+        probability = spikeCount / totalSpike
+
+        T = torch.FloatTensor([spikeOut.shape[-1]]).to(spikeOut.device)
+
+        # print(outShape)
+        ctx.save_for_backward(probability, desiredProb, spikeCount, T)
+
+        return torch.sum( -desiredProb * torch.log(probability))
+
+    @staticmethod
+    def backward(ctx, gradOutput):
+        (probability, desiredProb, spikeCount, T) = ctx.saved_tensors
+        N, C, H, W, _ = probability.shape
         
-    #   spikesAER = spikeOut.nonzero().tolist()
-        
-    #   for n in range(spikeOut.shape[0]):
-    #       for c in range(spikeOut.shape[1]):
-    #           for h in range(spikeOut.shape[2]):
-    #               for w in range(spikeOut.shape[3]):
-    #                   diff = desiredSpikes[n,c,h,w] - acutalSpikes[n,c,h,w]
-    #                   if diff < 0:
-    #                       spikesAER[n,c,h,w] = spikesAER[n,c,h,w,:diff]
-    #                   elif diff > 0:
-    #                       spikeDes[n,c,h,w,(actualInd[:diff] + startID)] = 1 / self.simulation['Ts']
-    #                       probableInds = np.random.randint(low=startID, high=stopID, size = diff)
-                            
-                            
-        
-        
-        
+        grad = (probability - desiredProb) / spikeCount * torch.ones((N, C, H, W, int(T.item())), dtype=torch.float32, device=probability.device)
+
+        return grad * gradOutput, None
+
+class loss_mem(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, spikeOut, desiredClass, mem):
+        N, C, H, W, T = spikeOut.shape
+        #spikeOutcopy = spikeOut.clone()
+        desiredClasscpu = desiredClass.cpu().data.numpy()
+        #desiredmem  = 1.05 * desiredClass*10 + 0.95 * (1 - desiredClass) * 10  #10 means theta
+        desiredmem  = 0 * desiredClasscpu*10 + 0.9950 * (1 - desiredClasscpu) * 10  #10 means theta, don;t care the true neuron
+        spikeOutcpu = spikeOut.cpu().detach().numpy() 
+        #print('shape', desiredmem.shape) 
+        desiredmem = desiredmem.repeat((spikeOutcpu.shape[-1]), axis=4)    
+            
+        desiredmem = desiredmem * spikeOutcpu
+
+        #spikeOutmem = spikeOut * (mem.cpu().detach().numpy())
+        spikeOutmem = spikeOutcpu * (mem.cpu().detach().numpy())
+
+        mask =  desiredClasscpu*0  + 1 * (1 - desiredClasscpu)           #true class should not be depressed
+        spikeOutmem = spikeOutmem * (mask.repeat((spikeOutcpu.shape[-1]), axis=4))
+        desiredmem = desiredmem * (mask.repeat((spikeOutcpu.shape[-1]), axis=4))
+        #print('mem ', desiredmem[1,1,0,0,600:620])
+        spikeDesired = torch.FloatTensor((spikeOutmem-desiredmem))
+        #print('desiredmem', desiredmem[1,0,0,0,:10])
+        #print('spikeOutmem', spikeOutmem[1,0,0,0,:])
+        spikeCount  = torch.sum(spikeOut, 4, keepdim=True).clamp(1) # minimum spike count of 1 for numerical stability
+        #error = (spikeDesired.to(mem.device)/spikeCount)
+        error = (spikeDesired.to(mem.device)/spikeOutcpu.shape[-1])
+        ctx.save_for_backward(mem, error, spikeOut)        
+        return 1/2 * torch.sum(error**2) 
+    @staticmethod
+    def backward(ctx, gradOutput):
+        (mem, error, spikeOut) = ctx.saved_tensors
+        grad = (error*spikeOut).to(mem.device) 
+        return None, None, gradOutput*grad 
