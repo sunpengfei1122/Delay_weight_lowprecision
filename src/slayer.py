@@ -415,8 +415,7 @@ class spikeLayer(torch.nn.Module):
         >>> delay.delay.data.clamp_(0)  
         '''
         return _delayLayer_minmax(inputSize,  self.simulation['Ts'], step=step)  
-    # def applySpikeFunction(self, membranePotential):
-    #   return _spikeFunction.apply(membranePotential, self.refKernel, self.neuron, self.simulation['Ts'])
+ 
 
     def spike(self, membranePotential):
         '''
@@ -449,8 +448,7 @@ class _denseLayer(nn.Conv3d):
             inChannels = inFeatures[2]
         else:
             raise Exception('inFeatures should not be more than 3 dimension. It was: {}'.format(inFeatures.shape))
-        # print('Kernel Dimension:', kernel)
-        # print('Input Channels  :', inChannels)
+
         
         if type(outFeatures) == int:
             outChannels = outFeatures
@@ -462,7 +460,7 @@ class _denseLayer(nn.Conv3d):
 
         if weightScale != 1:    
             self.weight = torch.nn.Parameter(weightScale * self.weight) # scale the weight if needed
-            # print('In dense, using weightScale of', weightScale)
+
 
         self.preHookFx = preHookFx
 
@@ -471,18 +469,12 @@ class _denseLayer(nn.Conv3d):
         '''
         '''
         if self.preHookFx is None:
-            #print('come1')
+           
             return F.conv3d(input, 
                             self.weight, self.bias, 
                             self.stride, self.padding, self.dilation, self.groups)
         else:
-            #import numpy as np
-            #np.set_printoptions(threshold=np.inf, linewidth=np.inf)
-            #print('come here', np.shape(self.preHookFx(self.weight)), self.preHookFx(self.weight)[:10])
-            #mm  =  F.conv3d(input, self.preHookFx(self.weight), self.bias, self.stride, self.padding, self.dilation, self.groups)
-            #print('shape', np.shape(self.weight))
-            #if np.shape(input) == [1,700,1,1,800]:
-            #print('what is', self.preHookFx(self.weight).cpu().numpy()[:20,:20,:,:,:])
+ 
             return F.conv3d(input, 
                             self.preHookFx(self.weight), self.bias, 
                             self.stride, self.padding, self.dilation, self.groups)
@@ -528,9 +520,9 @@ class _denseLayer_selfconnect(nn.Conv3d):
         '''
         '''
         mask = torch.eye(self.weight.shape[0]).view(self.weight.shape[0],self.weight.shape[0],1,1,1).to(input.device)
-        #print('shape', mask.shape,self.weight.shape )
+      
         if self.preHookFx is None:
-            #print('come1')
+           
             return F.conv3d(input, 
                             self.weight*mask, self.bias, 
                             self.stride, self.padding, self.dilation, self.groups)
@@ -579,16 +571,7 @@ class _convLayer(nn.Conv3d):
         else:
             raise Exception('dilation can be either int or tuple of size 2. It was: {}'.format(dilation.shape))
 
-        # groups
-        # no need to check for groups. It can only be int
 
-        # print('inChannels :', inChannels)
-        # print('outChannels:', outChannels)
-        # print('kernel     :', kernel, kernelSize)
-        # print('stride     :', stride)
-        # print('padding    :', padding)
-        # print('dilation   :', dilation)
-        # print('groups     :', groups)
 
         super(_convLayer, self).__init__(inChannels, outChannels, kernel, stride, padding, dilation, groups, bias=False)
 
@@ -873,9 +856,7 @@ class _pspLayer(nn.Conv3d):
 
         super(_pspLayer, self).__init__(inChannels, outChannels, kernel, bias=False) 
 
-        # print(filter)
-        # print(np.flip(filter.cpu().data.numpy()).reshape(self.weight.shape)) 
-        # print(torch.FloatTensor(np.flip(filter.cpu().data.numpy()).copy()))
+
 
         flippedFilter = torch.FloatTensor(np.flip(filter.cpu().data.numpy()).copy()).reshape(self.weight.shape)
 
@@ -888,9 +869,6 @@ class _pspLayer(nn.Conv3d):
         '''
         inShape = input.shape
         inPadded = self.pad(input.reshape((inShape[0], 1, 1, -1, inShape[-1])))
-        # print((inShape[0], 1, 1, -1, inShape[-1]))
-        # print(input.reshape((inShape[0], 1, 1, -1, inShape[-1])).shape)
-        # print(inPadded.shape)
         output = F.conv3d(inPadded, self.weight) * self.Ts
         return output.reshape(inShape)
 
@@ -930,79 +908,19 @@ class _spikeFunction(torch.autograd.Function):
         threshold      = neuron['theta']
         oldDevice = torch.cuda.current_device()
 
-        # if device != oldDevice: torch.cuda.set_device(device)
-        # torch.cuda.device(3)
-
-        # spikeTensor = torch.empty_like(membranePotential)
-
-        # print('membranePotential  :', membranePotential .device)
-        # print('spikeTensor        :', spikeTensor       .device)
-        # print('refractoryResponse :', refractoryResponse.device)
-            
-        # (membranePotential, spikes) = slayer_cuda.get_spikes_cuda(membranePotential,
-        #                                                         torch.empty_like(membranePotential),  # tensor for spikes
-        #                                                         refractoryResponse,
-        #                                                         threshold,
-        #                                                         Ts)
         import numpy as np
         np.set_printoptions(threshold=np.inf)
         import numpy as np
         import matplotlib.pyplot as plt
         spikes = slayerCuda.getSpikes(membranePotential.contiguous(), refractoryResponse, threshold, Ts)
-        '''
-        if membranePotential.shape[1] == 20:
-        # 去掉多余维度，保留 [20, 300]，对应 20 条曲线，每条有 300 个时间步
-            membranePotential_reshaped = membranePotential.cpu().detach().numpy().reshape(20, 300)
-            plt.figure(figsize=(12, 8))
-
-        # 绘制 20 条曲线，每一条对应 20 个神经元在 300 时间步内的电位变化
-            for i in range(8,12):
-                plt.plot(membranePotential_reshaped[i], label=f'Neuron {i+1}')
-
-            plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=8)
-            plt.title('Membrane Potential over Time (20 Neurons, 300 Time Steps)', fontsize=14)
-            plt.xlabel('Time Steps', fontsize=12)
-            plt.ylabel('Membrane Potential', fontsize=12)
-            plt.grid(True)
-            plt.tight_layout()
-            plt.savefig('before',dpi=600)
-        #if membranePotential.shape[1] == 20:
-        #    print('before',membranePotential.cpu().detach().numpy()[:,10,] )
-
-        #if membranePotential.shape[1] == 20:
-        #    print('after',membranePotential.cpu().detach().numpy()[:,10,]  )  
-       
-        import numpy as np
-        import matplotlib.pyplot as plt
-        
-        if membranePotential.shape[1] == 20:
-        # 去掉多余维度，保留 [20, 300]，对应 20 条曲线，每条有 300 个时间步
-            membranePotential_reshaped = membranePotential.cpu().detach().numpy().reshape(20, 800)
-            plt.figure(figsize=(25, 12))
-            #plt.xlim(200, 700)  # 时间范围
-        # 绘制 20 条曲线，每一条对应 20 个神经元在 300 时间步内的电位变化
-            for i in range(10,11):
-                plt.plot(membranePotential_reshaped[i], label=f'Neuron {i+1}')
-
-            plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=8)
-            plt.title('Membrane Potential over Time (20 Neurons, 300 Time Steps)', fontsize=14)
-            plt.xlabel('Time Steps', fontsize=14)
-            plt.ylabel('Membrane Potential', fontsize=14)
-            plt.grid(True)
-        
-            plt.tight_layout()
-            plt.savefig('membrane_overtime_true',dpi=600)
-         '''
+ 
      
         pdfScale        = torch.autograd.Variable(torch.tensor(neuron['scaleRho']                 , device=device, dtype=dtype), requires_grad=False)
-        # pdfTimeConstant = torch.autograd.Variable(torch.tensor(neuron['tauRho']                   , device=device, dtype=dtype), requires_grad=False) # needs to be scaled by theta
+
         pdfTimeConstant = torch.autograd.Variable(torch.tensor(neuron['tauRho'] * neuron['theta'] , device=device, dtype=dtype), requires_grad=False) # needs to be scaled by theta
         threshold       = torch.autograd.Variable(torch.tensor(neuron['theta']                    , device=device, dtype=dtype), requires_grad=False)
         ctx.save_for_backward(membranePotential, threshold, pdfTimeConstant, pdfScale)
-        # torch.cuda.synchronize()
-        
-        # if device != oldDevice: torch.cuda.set_device(oldDevice)
-        # torch.cuda.device(oldDevice)
+
         
         return spikes
         
@@ -1012,16 +930,8 @@ class _spikeFunction(torch.autograd.Function):
         '''
         (membranePotential, threshold, pdfTimeConstant, pdfScale) = ctx.saved_tensors
         spikePdf = pdfScale / pdfTimeConstant * torch.exp( -torch.abs(membranePotential - threshold) / pdfTimeConstant)
-        # return gradOutput, None, None, None # This seems to work better!
         return gradOutput * spikePdf, None, None, None
-        # plt.figure()
-        # plt.plot(gradOutput[0,5,0,0,:].cpu().data.numpy())
-        # print   (gradOutput[0,0,0,0,:].cpu().data.numpy())
-        # plt.plot(membranePotential[0,0,0,0,:].cpu().data.numpy())
-        # plt.plot(spikePdf         [0,0,0,0,:].cpu().data.numpy())
-        # print   (spikePdf         [0,0,0,0,:].cpu().data.numpy())
-        # plt.show()
-        # return gradOutput * spikePdf, None, None, None
+
 
 class _pspFunction(torch.autograd.Function):
     '''
@@ -1067,8 +977,7 @@ class _delayLayer(nn.Module):
             raise Exception('inputSize can only be 1 or 2 dimension. It was: {}'.format(inputSize.shape))
 
         self.delay = torch.nn.Parameter(torch.rand((inputChannels, inputHeight, inputWidth)), requires_grad=True)
-        # self.delay = torch.nn.Parameter(torch.empty((inputChannels, inputHeight, inputWidth)), requires_grad=True)
-        # print('delay:', torch.empty((inputChannels, inputHeight, inputWidth)))
+ 
         self.Ts = Ts
 
     def forward(self, input):
@@ -1126,8 +1035,7 @@ class _delayLayer_minmax(nn.Module):
         self.delay = torch.nn.Parameter(torch.rand((inputChannels, inputHeight, inputWidth)), requires_grad=True)
         self.mind = torch.nn.Parameter(torch.tensor(0.0))
         self.maxd = torch.nn.Parameter(torch.tensor(10.0))
-        # self.delay = torch.nn.Parameter(torch.empty((inputChannels, inputHeight, inputWidth)), requires_grad=True)
-        # print('delay:', torch.empty((inputChannels, inputHeight, inputWidth)))
+     
         self.Ts = Ts
         self.step = step
 
@@ -1145,11 +1053,9 @@ class _delayLayer_minmax(nn.Module):
 class DelayClampSTE(torch.autograd.Function):
     @staticmethod
     def forward(ctx, input, l, U):
-        # 前向传播：硬性剪切操作
-        # 如果 input > U，则输出 U；如果 input < l，则输出 l；否则输出 input
-        #out = torch.clamp(input, l, U)
+
         out = input.clone()
-        #out[input>U] = U
+
         out[input <l] = 0
     
         ctx.save_for_backward(input, l, U)
@@ -1157,38 +1063,31 @@ class DelayClampSTE(torch.autograd.Function):
 
     @staticmethod
     def backward(ctx, grad_output):
-        # 反向传播：采用直通估计器，让梯度“透传”
+
         input, l, U = ctx.saved_tensors
 
-        # 对 input 的梯度，直接把 grad_output 透传，不管是否在边界外
+  
         grad_input = grad_output.clone()
 
-        # 对 l，当 input < l 时，原始 forward 输出为 l，
-        # 因此对于 l 的梯度应为 grad_output 在这些位置的和（d(clamp)/dl = 1）
+
         indicator_lower = (input < l).type_as(grad_output)
         grad_l = torch.sum(grad_output * indicator_lower)
 
-        # 对 U，当 input > U 时，原始 forward 输出为 U，
-        # 因此对于 U 的梯度也为 grad_output 在这些位置的和（d(clamp)/dU = 1）
+ 
         indicator_upper = (input > U).type_as(grad_output)
         grad_U = torch.sum(grad_output * indicator_upper)
         ctx.grad_l = grad_l
         ctx.grad_U = grad_U
-        # 返回的梯度分别对应 input, l, U
+       
         return grad_input, grad_l, grad_U
 
 class DelayClampSTE1(torch.autograd.Function):
     @staticmethod
     def forward(ctx, input, l, U):
-        # 前向传播：硬性剪切操作
-        # 如果 input > U，则输出 U；如果 input < l，则输出 l；否则输出 input
-        #out = torch.clamp(input, l, U)
+  
         delta = 0.7*torch.mean(torch.abs(input)).detach()
         
-        # 使用 torch.where 进行条件赋值：
-        # 当 input < self.l 时，将输出设为 0
-        # 当 self.l <= input < delta 时，将输出设为 self.l
-        # 当 input >= delta 时，将输出设为 delta
+
         output = torch.where(
             input < l,
             torch.zeros_like(input),
@@ -1203,24 +1102,23 @@ class DelayClampSTE1(torch.autograd.Function):
 
     @staticmethod
     def backward(ctx, grad_output):
-        # 反向传播：采用直通估计器，让梯度“透传”
+    
         input, l, U,delta = ctx.saved_tensors
 
-        # 对 input 的梯度，直接把 grad_output 透传，不管是否在边界外
+     
         grad_input = grad_output.clone()
 
-        # 对 l，当 input < l 时，原始 forward 输出为 l，
-        # 因此对于 l 的梯度应为 grad_output 在这些位置的和（d(clamp)/dl = 1）
+     
         indicator_l = ((input >= l) & (input < delta)).type_as(grad_output)
         grad_l = torch.sum(grad_output * indicator_l)
 
-        # 对 U 的梯度：仅在 forward 输出为 U 的区域，即当 input >= delta 时，梯度传递为 1。
+       
         indicator_U = (input >= delta).type_as(grad_output)
         grad_U = torch.sum(grad_output * indicator_U)
         ctx.grad_l = grad_l
         ctx.grad_U = grad_U
 
-        # 返回的梯度分别对应 input, l, U
+ 
         return grad_input, grad_l, grad_U
 
 
@@ -1234,15 +1132,9 @@ class _delayFunction1(torch.autograd.Function):
         device = input.device
         dtype  = input.dtype
         step = torch.autograd.Variable(torch.tensor(step, device=device, dtype=dtype), requires_grad=False)
-        #delay_inference = quantize_delay(delay,0, step=step)
         delay_inference = quantize_delay(delay,mind, step=step)
         delay_inference = DelayClampSTE.apply(delay_inference, mind, maxd) 
 
-        #delay_inference = DelayClampSTE1.apply(delay, mind, maxd) 
-
-        #with open("delay_valuess_win80_inference.txt", "a") as f:
-
-        #    f.write("secodn: {} \n".format( torch.round(delay_inference).squeeze()))
         output = slayerCuda.shift(input.contiguous(), delay_inference, Ts)
         Ts = torch.autograd.Variable(torch.tensor(Ts, device=device, dtype=dtype), requires_grad=False)
         ctx.save_for_backward(output, delay.data, Ts)
@@ -1262,14 +1154,7 @@ class _delayFunction1(torch.autograd.Function):
         # the conv operation should not be scaled by Ts. 
         # As such, the output is -( x[k+1]/Ts - x[k]/Ts ) which is what we want.
         gradDelay  = torch.sum(gradOutput * outputDiff, [0, -1], keepdim=True).reshape(gradOutput.shape[1:-1]) * Ts
-        # no minus needed here, as it is included in diffFilter which is -1 * [1, -1]
-        '''#learable delay threshold
-        indicator_lower = (delay < ctx.mind).type_as(gradDelay)
-        grad_mind = torch.sum(gradDelay * indicator_lower)
-        # 当原始 delay 大于 maxd 时，输出被置为 maxd，因此梯度应传递到 maxd
-        indicator_upper = (delay > ctx.maxd).type_as(gradDelay)
-        grad_maxd = torch.sum(gradDelay * indicator_upper)
-        '''
+  
         grad_mind = None
         grad_maxd = None 
         
@@ -1278,17 +1163,17 @@ class _delayFunction1(torch.autograd.Function):
 class DelayQuantizeCustom(torch.autograd.Function):
     @staticmethod
     def forward(ctx, input, mind, step=10):
-        # 量化操作：对 (input - l)/step 进行向下取整后乘回 step，并加上 l
+    
         quantized = torch.floor((input - mind) / step) * step + mind
         ctx.save_for_backward(input, mind, torch.tensor(step, device=input.device, dtype=input.dtype))
         return quantized
 
     @staticmethod
     def backward(ctx, grad_output):
-        # 采用直通估计器：反向传播时直接将梯度传递给 input 和 l
+ 
         input, l, step = ctx.saved_tensors
         grad_input = grad_output.clone()
-        grad_l = grad_output.clone()  # 直接传递梯度到 l（作为一种 STE 近似）
+        grad_l = grad_output.clone()  
         return grad_input, grad_l, None
 
 def quantize_delay(input, l, step=10):
