@@ -319,7 +319,7 @@ if __name__ == '__main__':
         stats.update()
         stats.plot(saveFig=True, path = trainedFolder + '/')
         module.gradFlow(path= trainedFolder + '/')
-        if stats.testing.bestAccuracy is True:  torch.save(module.state_dict(), trainedFolder + '/NTIDIGITS.pt')
+
      
             
         stats.save(trainedFolder + '/')
