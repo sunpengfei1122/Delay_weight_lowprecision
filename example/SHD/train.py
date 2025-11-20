@@ -145,9 +145,9 @@ class Network1(torch.nn.Module):
         self.fc2   = torch.nn.utils.weight_norm(slayer.dense(128, 128, preHookFx= self.preHookFx2), name='weight')
         self.fc3   = torch.nn.utils.weight_norm(slayer.dense(128,  20), name='weight')
 
-        self.delay1 = slayer.delay_minmax(128, step=10)  #learnable lowest delay th, the quantized  delay will be [th, win+th, 2*win_th]  
+        self.delay1 = slayer.delay_minmax(128, step=1)  #learnable lowest delay th, the quantized  delay will be [th, win+th, 2*win_th]  
         #self.delay1_1 = slayer.delay(128)   # non learnable, the quantized delay will be [o, win, 2*win], win is the step window(defined in /src/slayer)
-        self.delay2 = slayer.delay_minmax(128,step =10)
+        self.delay2 = slayer.delay_minmax(128,step =1) £ step can be 1,2,3,4,5,10,quantize the delays
         #self.delay2_1 = slayer.delay(128)
 
     def forward(self, spike):
@@ -217,7 +217,7 @@ if __name__ == '__main__':
     net = Network1(netParams).to(device)
     module = net
     
-    # # Use multiple GPU's
+    # # Use multiple GPU's, uncomment it
     #deviceIds = [0, 1, 2,3]
     #net = torch.nn.DataParallel(Network1(netParams).to(device), device_ids=deviceIds)
     #module = net.module
