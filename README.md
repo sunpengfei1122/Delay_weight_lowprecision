@@ -30,7 +30,7 @@ To test the installation:
 ## Examples
 Example implementations can be found inside Examples folder.
 
-* Run example SHD implementation, with Learnable tenary weights, quantized delays, L2 penalty. You could get >90% performance on SHD datasets. Unzip the SHD dataset under example/SHD/data/ folder (download here: https://drive.google.com/file/d/1XfHOPds7drVKjNJD9y7XKtiDgnq4BGNf/view?usp=drive_link)
+* Run example SHD implementation, with Learnable tenary weights, quantized delays, L2 penalty. You could get >90% performance on SHD datasets. Unzip the SHD dataset and replace it with example/SHD/data/proxy folder (download here: https://drive.google.com/file/d/1XfHOPds7drVKjNJD9y7XKtiDgnq4BGNf/view?usp=drive_link)
 
 ```bash
    cd examples/SHD
