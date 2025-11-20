@@ -147,7 +147,7 @@ class Network1(torch.nn.Module):
 
         self.delay1 = slayer.delay_minmax(128, step=1)  #learnable lowest delay th, the quantized  delay will be [th, win+th, 2*win_th]  
         #self.delay1_1 = slayer.delay(128)   # non learnable, the quantized delay will be [o, win, 2*win], win is the step window(defined in /src/slayer)
-        self.delay2 = slayer.delay_minmax(128,step =1) #step can be 1,2,3,4,5,10,quantize the delays
+        self.delay2 = slayer.delay_minmax(128,step =1)   #step can be 1,2,3,4,5,10,quantize the delays
         #self.delay2_1 = slayer.delay(128)
 
     def forward(self, spike):
