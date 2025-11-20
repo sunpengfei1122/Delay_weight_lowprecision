@@ -1,5 +1,7 @@
 # Exploiting heterogeneous delays for efficient computation in low-bit neural networks
+
 Pengfei Sun, Jascha Achterberg, Zhe Su, Dan F.M. Goodman, Danyal Akarca
+
 Imperial College London, University of Oxford, ETH Zurich
 
 # README #
