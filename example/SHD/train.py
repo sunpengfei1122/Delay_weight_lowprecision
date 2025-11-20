@@ -264,7 +264,7 @@ if __name__ == '__main__':
             stats.training.numSamples     += len(label)
             for name, parameters in net.named_parameters():
 
-                if name == 'delay1.delay':
+                if name == 'delay1.delay':   # if utilize multiple GPUs, utilize the name 'module.delay1.delay'
                     loss1 += torch.norm(parameters, 2)  # l2 loss, try to minize the values, not to zero.
                 elif name == 'delay2.delay':
                     loss2 += torch.norm(parameters, 2)
