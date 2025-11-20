@@ -120,7 +120,7 @@ class weight_quantize_fn(nn.Module):
     if self.w_bit == 32:
       weight_q = x
     elif self.w_bit == 1:
-      #E = torch.mean(torch.abs(x)).detach()
+      
       alpha1 = F.softplus(self.alpha )
       beta1 = F.softplus(self.beta )
       weight_q = self.uniform_q(x, alpha1, beta1 ) 
@@ -129,7 +129,7 @@ class weight_quantize_fn(nn.Module):
       max_w = torch.max(torch.abs(weight)).detach()
       weight = weight / 2 / max_w + 0.5
       weight_q = max_w * (2 * self.uniform_q(weight) - 1)
-      #print('come here', self.w_bit)
+    
     return weight_q
 
 class Network1(torch.nn.Module):
@@ -239,28 +239,7 @@ if __name__ == '__main__':
     
     # Learning stats instance.
     stats = snn.utils.stats()
-    #load the pretrained weights
-    '''
-    lastEpoch = 0
-    if os.path.exists(trainedFolder + '/accuracy.txt'):
-        checkpoints = os.listdir(logsFolder)
-        lastEpoch = max([int(s[10:-3]) for s in checkpoints]) + 1
-        lastEpoch = stats.load(trainedFolder + '/', numEpoch=lastEpoch)
-
-        print('Trying to run from last saved state at Epoch = {}'.format(lastEpoch))
-        checkpointFile = logsFolder + '/checkpoint{:d}.pt'.format(lastEpoch-1)
-        #checkpointFile = logsFolder + '/checkpoint{:d}.pt'.format(300)
-        #checkpointFile = trainedFolder + '/NTIDIGITS.pt'
-        
-        
-        try:
-            checkpoint = torch.load(checkpointFile)
-        except OSError:
-            print('Error reading checkpoint file {}.'.format(checkpointFile))
-
-        module.load_state_dict(checkpoint['net'])
-        optimizer.load_state_dict(checkpoint['optimizer'])
-    '''
+   
     total = sum([param.nelement() for param in module.parameters()])
     print("Number of parameter: %.2fM" % (total))
     # Main loop
@@ -279,7 +258,7 @@ if __name__ == '__main__':
             
             # Forward pass of the network.
             output, s1,s11,s2,s22 = net.forward(input)
-            #print('test',input.shape)            
+                    
             # Gather the training stats.
             stats.training.correctSamples += torch.sum( snn.predict.getClass(output) == label ).data.item()
             stats.training.numSamples     += len(label)
@@ -294,13 +273,10 @@ if __name__ == '__main__':
 
             
 
-                            
-            # Calculate loss.
-    
-
+                        
             # Calculate loss.
             loss =  error.probSpikes(output, target) + float(args.lr1)* loss1 + float(args.lr2) * loss2
-            #print('mem',loss.shape)            
+                       
             # Reset gradients to zero.
             optimizer.zero_grad()
             
