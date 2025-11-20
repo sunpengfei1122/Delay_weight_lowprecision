@@ -318,8 +318,5 @@ if __name__ == '__main__':
         # Update stats.
         stats.update()
         stats.plot(saveFig=True, path = trainedFolder + '/')
-        module.gradFlow(path= trainedFolder + '/')
-
-     
-            
+        module.gradFlow(path= trainedFolder + '/')        
         stats.save(trainedFolder + '/')
