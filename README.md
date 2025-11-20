@@ -48,5 +48,5 @@ The corresponding quantized weights and delays are:
 
 # Credits # 
 
-The framework is based on ([SLAYER framework](https://github.com/bamsumit/slayerPytorch))
+The training framework is based on ([SLAYER framework](https://github.com/bamsumit/slayerPytorch))
 	
