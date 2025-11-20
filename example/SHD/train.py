@@ -196,8 +196,8 @@ if __name__ == '__main__':
     parser.add_argument('-seed', type=int, default=2256 )
     parser.add_argument('-f', type=str, default='delay0_win10' )    
     parser.add_argument('-l', type=str, default='delay0_win10' )
-    parser.add_argument('-lr1', type=str, default=0.1 )   #penalty term
-    parser.add_argument('-lr2', type=str, default=0.1 )
+    parser.add_argument('-lr1', type=str, default=0.0 )   #penalty term for the first layer
+    parser.add_argument('-lr2', type=str, default=0.0 )   #penalty term for the second layer
     args = parser.parse_args()
     trainedFolder = args.f
     #'Trained01'
