@@ -46,5 +46,7 @@ which uses 128 neurons and a dilation step of 10—you can get the performance o
 The corresponding quantized weights and delays are:
 ![Delay evolution](docs/3.png)
 
+# Credits # 
 
+The framework is based on ([https://github.com/zbs881314/Temporal-Coded-Deep-SNN](https://github.com/bamsumit/slayerPytorch))
 	
